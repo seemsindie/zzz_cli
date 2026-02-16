@@ -1,0 +1,77 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-linux
+          - os: ubuntu-latest
+            target: aarch64-linux
+          - os: macos-latest
+            target: aarch64-macos
+          - os: macos-13
+            target: x86_64-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: mlugg/setup-zig@v2
+      with:
+        version: 0.16.0-dev.2535+b5bd49460
+    - name: Build
+      run: zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }}
+    - name: Package
+      run: tar -czf zzz-cli-${{ github.ref_name }}-${{ matrix.target }}.tar.gz -C zig-out/bin zzz
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: zzz-cli-${{ matrix.target }}
+        path: zzz-cli-*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: zzz-cli-*
+        merge-multiple: true
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        generate_release_notes: true
+        files: zzz-cli-*.tar.gz
+
+  docker:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - uses: docker/metadata-action@v5
+      id: meta
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+    - uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
