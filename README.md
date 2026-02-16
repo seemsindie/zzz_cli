@@ -4,8 +4,25 @@ Command-line tool for the zzz web framework. Provides project scaffolding, code 
 
 ## Installation
 
+### Shell installer (macOS & Linux)
+
 ```bash
-# Build from source
+curl -fsSL https://zzz.seemsindie.com/install.sh | sh
+```
+
+Install a specific version:
+
+```bash
+ZZZ_VERSION=v0.1.0 curl -fsSL https://zzz.seemsindie.com/install.sh | sh
+```
+
+### Download from GitHub Releases
+
+Pre-built binaries for macOS (arm64, x86_64) and Linux (x86_64, aarch64) are available on the [Releases](https://github.com/seemsindie/zzz_cli/releases) page.
+
+### Build from source
+
+```bash
 cd zzz_cli
 zig build
 # Binary at zig-out/bin/zzz
