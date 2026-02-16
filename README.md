@@ -1,0 +1,150 @@
+# zzz_cli
+
+Command-line tool for the zzz web framework. Provides project scaffolding, code generation, development server, database migrations, and more.
+
+## Installation
+
+```bash
+# Build from source
+cd zzz_cli
+zig build
+# Binary at zig-out/bin/zzz
+```
+
+## Commands
+
+### `zzz new <name>`
+
+Create a new zzz project with full directory structure.
+
+```bash
+zzz new my_app
+cd my_app
+zig build run
+# Server running on http://127.0.0.1:4000
+```
+
+Creates:
+```
+my_app/
+  build.zig
+  build.zig.zon
+  .gitignore
+  src/
+    main.zig
+    controllers/
+  templates/
+  public/
+    css/style.css
+    js/app.js
+```
+
+### `zzz server` (alias: `zzz s`)
+
+Start a development server with auto-reload on file changes.
+
+```bash
+zzz server
+# Building...
+# Server running. Watching for changes... (Ctrl+C to stop)
+```
+
+### `zzz gen controller <Name>`
+
+Generate a RESTful controller with index, show, create, update, and delete actions.
+
+```bash
+zzz gen controller Users
+# Created: src/controllers/users.zig
+```
+
+### `zzz gen model <Name> [field:type ...]`
+
+Generate a database model schema and migration file.
+
+```bash
+zzz gen model Post title:string body:text user_id:integer published:boolean
+# Created: src/post.zig
+# Created: priv/migrations/001_create_post.zig
+```
+
+Supported types: `string`, `text`, `integer`/`int`, `float`/`real`, `boolean`/`bool`
+
+### `zzz gen channel <Name>`
+
+Generate a WebSocket channel for real-time communication.
+
+```bash
+zzz gen channel Chat
+# Created: src/channels/chat.zig
+```
+
+### `zzz migrate`
+
+Run database migrations.
+
+```bash
+zzz migrate            # Run pending migrations
+zzz migrate rollback   # Rollback last migration
+zzz migrate status     # Show migration status
+```
+
+### `zzz routes`
+
+List all application routes.
+
+```bash
+zzz routes
+```
+
+### `zzz swagger`
+
+Export the OpenAPI specification.
+
+```bash
+zzz swagger > api.json
+```
+
+### `zzz test`
+
+Run project tests.
+
+```bash
+zzz test
+```
+
+### `zzz deps`
+
+List workspace dependencies.
+
+```bash
+zzz deps
+```
+
+### `zzz version`
+
+Show version.
+
+```bash
+zzz version    # 0.1.0
+```
+
+## Workflow Example
+
+```bash
+zzz new blog
+cd blog
+zzz gen model Post title:string content:text published:boolean
+zzz gen controller Posts
+zzz gen channel Comments
+zzz migrate
+zzz server
+```
+
+## Requirements
+
+- Zig 0.16.0-dev.2535+b5bd49460 or later
+
+## License
+
+MIT License - Copyright (c) 2026 Ivan Stamenkovic
