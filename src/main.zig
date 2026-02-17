@@ -80,7 +80,11 @@ fn printUsage(io: std.Io) void {
         \\Usage: zzz <command> [options]
         \\
         \\Commands:
-        \\  new <name>              Create a new zzz project
+        \\  new <name> [options]    Create a new zzz project
+        \\      --docker=false        Skip Docker file generation
+        \\      --db=sqlite|postgres  Include database configuration
+        \\      --full                Full project with controllers & middleware
+        \\      --api                 API-only mode (no templates/static files)
         \\  server, s               Start the development server (with auto-reload)
         \\  routes                  List all application routes
         \\  gen controller <Name>   Generate a controller

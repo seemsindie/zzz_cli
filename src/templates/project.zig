@@ -100,7 +100,10 @@ pub const main_zig =
     \\}
     \\
     \\const App = Router.define(.{
-    \\    .middleware = &.{zzz.logger},
+    \\    .middleware = &.{
+    \\        zzz.logger,
+    \\        zzz.healthCheck(.{}),
+    \\    },
     \\    .routes = &.{
     \\        Router.get("/", index),
     \\    },
@@ -161,6 +164,18 @@ pub const config_prod_zig =
     \\
 ;
 
+pub const config_staging_zig =
+    \\const AppConfig = @import("config").AppConfig;
+    \\
+    \\/// Staging defaults — production-like with verbose logging.
+    \\pub const config: AppConfig = .{
+    \\    .host = "0.0.0.0",
+    \\    .port = 8080,
+    \\    .secret_key_base = "MUST-BE-SET-VIA-ENV",
+    \\};
+    \\
+;
+
 pub const dot_env =
     \\# Development environment variables
     \\# These override comptime defaults from config/dev.zig
@@ -207,6 +222,347 @@ pub const style_css =
     \\    padding: 0 20px;
     \\    color: #333;
     \\}
+    \\
+;
+
+// ── Full Mode Templates ──────────────────────────────────────────────
+
+pub const main_zig_full =
+    \\const std = @import("std");
+    \\const zzz = @import("zzz");
+    \\const app_config = @import("app_config");
+    \\
+    \\const Router = zzz.Router;
+    \\const Context = zzz.Context;
+    \\const home = @import("controllers/home.zig");
+    \\const api = @import("controllers/api.zig");
+    \\
+    \\const App = Router.define(.{
+    \\    .middleware = &.{
+    \\        zzz.errorHandler(.{}),
+    \\        zzz.logger,
+    \\        zzz.cors(.{}),
+    \\        zzz.bodyParser(.{}),
+    \\        zzz.session(.{}),
+    \\        zzz.csrf(.{}),
+    \\        zzz.staticFiles(.{ .root = "public" }),
+    \\        zzz.healthCheck(.{}),
+    \\    },
+    \\    .routes = &.{
+    \\        Router.get("/", home.index),
+    \\        Router.scope("/api", .{}, &.{
+    \\            Router.get("/status", api.status),
+    \\        }),
+    \\    },
+    \\});
+    \\
+    \\pub fn main(init: std.process.Init) !void {
+    \\    const allocator = init.gpa;
+    \\    const io = init.io;
+    \\
+    \\    var env = try zzz.Env.init(allocator, .{});
+    \\    defer env.deinit();
+    \\
+    \\    const config = zzz.mergeWithEnv(@TypeOf(app_config.config), app_config.config, &env);
+    \\
+    \\    var server = zzz.Server.init(allocator, .{
+    \\        .host = config.host,
+    \\        .port = config.port,
+    \\    }, App.handler);
+    \\
+    \\    try server.listen(io);
+    \\}
+    \\
+;
+
+pub const main_zig_api =
+    \\const std = @import("std");
+    \\const zzz = @import("zzz");
+    \\const app_config = @import("app_config");
+    \\
+    \\const Router = zzz.Router;
+    \\const Context = zzz.Context;
+    \\
+    \\fn status(ctx: *Context) !void {
+    \\    ctx.json(.ok, .{ .status = "ok" });
+    \\}
+    \\
+    \\const App = Router.define(.{
+    \\    .middleware = &.{
+    \\        zzz.errorHandler(.{}),
+    \\        zzz.logger,
+    \\        zzz.cors(.{}),
+    \\        zzz.bodyParser(.{}),
+    \\        zzz.healthCheck(.{}),
+    \\    },
+    \\    .routes = &.{
+    \\        Router.get("/api/status", status),
+    \\    },
+    \\});
+    \\
+    \\pub fn main(init: std.process.Init) !void {
+    \\    const allocator = init.gpa;
+    \\    const io = init.io;
+    \\
+    \\    var env = try zzz.Env.init(allocator, .{});
+    \\    defer env.deinit();
+    \\
+    \\    const config = zzz.mergeWithEnv(@TypeOf(app_config.config), app_config.config, &env);
+    \\
+    \\    var server = zzz.Server.init(allocator, .{
+    \\        .host = config.host,
+    \\        .port = config.port,
+    \\    }, App.handler);
+    \\
+    \\    try server.listen(io);
+    \\}
+    \\
+;
+
+pub const home_controller_zig =
+    \\const zzz = @import("zzz");
+    \\const Context = zzz.Context;
+    \\
+    \\pub fn index(ctx: *Context) !void {
+    \\    ctx.html(.ok,
+    \\        \\<!DOCTYPE html>
+    \\        \\<html>
+    \\        \\<head>
+    \\        \\  <title>Welcome to Zzz</title>
+    \\        \\  <link rel="stylesheet" href="/css/style.css">
+    \\        \\</head>
+    \\        \\<body>
+    \\        \\  <h1>Welcome to Zzz!</h1>
+    \\        \\  <p>Your new project is ready.</p>
+    \\        \\</body>
+    \\        \\</html>
+    \\    );
+    \\}
+    \\
+;
+
+pub const api_controller_zig =
+    \\const zzz = @import("zzz");
+    \\const Context = zzz.Context;
+    \\
+    \\pub fn status(ctx: *Context) !void {
+    \\    ctx.json(.ok, .{ .status = "ok" });
+    \\}
+    \\
+;
+
+// ── DB-Aware Config Templates ────────────────────────────────────────
+
+pub const config_zig_db =
+    \\/// Shared application config struct.
+    \\/// Comptime defaults come from dev.zig / prod.zig (selected by `-Denv`).
+    \\/// Runtime overrides come from `.env` + system env via `zzz.mergeWithEnv`.
+    \\pub const AppConfig = struct {
+    \\    host: []const u8 = "127.0.0.1",
+    \\    port: u16 = 4000,
+    \\    secret_key_base: []const u8 = "change-me-in-production",
+    \\    database_url: []const u8 = "",
+    \\};
+    \\
+;
+
+pub const config_dev_zig_db =
+    \\const AppConfig = @import("config").AppConfig;
+    \\
+    \\/// Development defaults.
+    \\pub const config: AppConfig = .{
+    \\    .host = "127.0.0.1",
+    \\    .port = 4000,
+    \\    .secret_key_base = "dev-secret-not-for-production",
+    \\    .database_url = "sqlite:dev.db",
+    \\};
+    \\
+;
+
+pub const config_prod_zig_db =
+    \\const AppConfig = @import("config").AppConfig;
+    \\
+    \\/// Production defaults.
+    \\pub const config: AppConfig = .{
+    \\    .host = "0.0.0.0",
+    \\    .port = 8080,
+    \\    .secret_key_base = "MUST-BE-SET-VIA-ENV",
+    \\    .database_url = "MUST-BE-SET-VIA-ENV",
+    \\};
+    \\
+;
+
+pub const config_staging_zig_db =
+    \\const AppConfig = @import("config").AppConfig;
+    \\
+    \\/// Staging defaults — production-like with verbose logging.
+    \\pub const config: AppConfig = .{
+    \\    .host = "0.0.0.0",
+    \\    .port = 8080,
+    \\    .secret_key_base = "MUST-BE-SET-VIA-ENV",
+    \\    .database_url = "MUST-BE-SET-VIA-ENV",
+    \\};
+    \\
+;
+
+pub const dot_env_postgres =
+    \\# Development environment variables
+    \\# These override comptime defaults from config/dev.zig
+    \\HOST=127.0.0.1
+    \\PORT=4000
+    \\SECRET_KEY_BASE=dev-secret-not-for-production
+    \\DATABASE_URL=postgres://zzz:zzz@localhost:5432/zzz_dev
+    \\
+;
+
+pub const env_example_postgres =
+    \\# Environment Configuration
+    \\#
+    \\# HOST              Server bind address (dev: 127.0.0.1, prod: 0.0.0.0)
+    \\# PORT              Server listen port (dev: 4000, prod: 8080)
+    \\# SECRET_KEY_BASE   Secret for sessions/CSRF — MUST be set in production
+    \\# DATABASE_URL      PostgreSQL connection URL
+    \\
+    \\HOST=127.0.0.1
+    \\PORT=4000
+    \\SECRET_KEY_BASE=dev-secret-not-for-production
+    \\DATABASE_URL=postgres://zzz:zzz@localhost:5432/zzz_dev
+    \\
+;
+
+pub const dot_env_sqlite =
+    \\# Development environment variables
+    \\# These override comptime defaults from config/dev.zig
+    \\HOST=127.0.0.1
+    \\PORT=4000
+    \\SECRET_KEY_BASE=dev-secret-not-for-production
+    \\DATABASE_URL=sqlite:$NAME$.db
+    \\
+;
+
+pub const env_example_sqlite =
+    \\# Environment Configuration
+    \\#
+    \\# HOST              Server bind address (dev: 127.0.0.1, prod: 0.0.0.0)
+    \\# PORT              Server listen port (dev: 4000, prod: 8080)
+    \\# SECRET_KEY_BASE   Secret for sessions/CSRF — MUST be set in production
+    \\# DATABASE_URL      SQLite database path
+    \\
+    \\HOST=127.0.0.1
+    \\PORT=4000
+    \\SECRET_KEY_BASE=dev-secret-not-for-production
+    \\DATABASE_URL=sqlite:$NAME$.db
+    \\
+;
+
+// ── Docker Templates ─────────────────────────────────────────────────
+
+pub const dockerfile =
+    \\FROM debian:bookworm-slim AS builder
+    \\
+    \\ARG ZIG_VERSION=0.16.0-dev.2535+b5bd49460
+    \\
+    \\RUN apt-get update && \
+    \\    apt-get install -y --no-install-recommends \
+    \\        curl ca-certificates xz-utils git && \
+    \\    rm -rf /var/lib/apt/lists/*
+    \\
+    \\RUN ARCH=$(dpkg --print-architecture) && \
+    \\    case "$ARCH" in amd64) ZIG_ARCH=x86_64;; arm64) ZIG_ARCH=aarch64;; esac && \
+    \\    curl -L "https://ziglang.org/builds/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz && \
+    \\    mkdir -p /opt/zig && \
+    \\    tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1 && \
+    \\    rm /tmp/zig.tar.xz
+    \\
+    \\ENV PATH="/opt/zig:${PATH}"
+    \\
+    \\WORKDIR /build
+    \\
+    \\# Clone zzz framework
+    \\RUN git clone --depth 1 https://github.com/seemsindie/zzz.git ../zzz
+    \\
+    \\COPY . .
+    \\RUN zig build -Doptimize=ReleaseSafe -Denv=prod
+    \\
+    \\FROM debian:bookworm-slim
+    \\
+    \\COPY --from=builder /build/zig-out/bin/$NAME$ /usr/local/bin/
+    \\COPY --from=builder /build/public /app/public
+    \\
+    \\WORKDIR /app
+    \\EXPOSE 4000
+    \\CMD ["$NAME$"]
+    \\
+;
+
+pub const docker_compose_yml =
+    \\services:
+    \\  app:
+    \\    build: .
+    \\    ports:
+    \\      - "4000:4000"
+    \\    environment:
+    \\      HOST: "0.0.0.0"
+    \\      PORT: "4000"
+    \\    healthcheck:
+    \\      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+    \\      interval: 10s
+    \\      timeout: 3s
+    \\      retries: 3
+    \\
+;
+
+pub const docker_compose_yml_postgres =
+    \\services:
+    \\  app:
+    \\    build: .
+    \\    ports:
+    \\      - "4000:4000"
+    \\    environment:
+    \\      HOST: "0.0.0.0"
+    \\      PORT: "4000"
+    \\      DATABASE_URL: "postgres://zzz:zzz@postgres:5432/$NAME$"
+    \\    depends_on:
+    \\      - postgres
+    \\    healthcheck:
+    \\      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+    \\      interval: 10s
+    \\      timeout: 3s
+    \\      retries: 3
+    \\
+    \\  postgres:
+    \\    image: postgres:17
+    \\    environment:
+    \\      POSTGRES_DB: $NAME$
+    \\      POSTGRES_USER: zzz
+    \\      POSTGRES_PASSWORD: zzz
+    \\    ports:
+    \\      - "5432:5432"
+    \\    volumes:
+    \\      - pgdata:/var/lib/postgresql/data
+    \\
+    \\  adminer:
+    \\    image: adminer
+    \\    ports:
+    \\      - "8080:8080"
+    \\    depends_on:
+    \\      - postgres
+    \\
+    \\volumes:
+    \\  pgdata:
+    \\
+;
+
+pub const dockerignore =
+    \\.env
+    \\.env.*
+    \\!.env.example
+    \\zig-cache/
+    \\zig-out/
+    \\.zig-cache/
+    \\.zig-out/
+    \\.git/
+    \\docker-compose.yml
     \\
 ;
 
