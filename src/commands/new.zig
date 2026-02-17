@@ -33,6 +33,7 @@ pub fn run(args: []const []const u8, _: Allocator, io: std.Io) void {
     };
     makeDirPath(name, "src", io) catch return;
     makeDirPath(name, "src/controllers", io) catch return;
+    makeDirPath(name, "config", io) catch return;
     makeDirPath(name, "templates", io) catch return;
     makeDirPath(name, "public", io) catch return;
     makeDirPath(name, "public/css", io) catch return;
@@ -65,6 +66,15 @@ pub fn run(args: []const []const u8, _: Allocator, io: std.Io) void {
     // Write src/main.zig
     writeFilePath(name, "src/main.zig", project_tmpl.main_zig, io) catch return;
 
+    // Write config/config.zig, config/dev.zig, config/prod.zig
+    writeFilePath(name, "config/config.zig", project_tmpl.config_zig, io) catch return;
+    writeFilePath(name, "config/dev.zig", project_tmpl.config_dev_zig, io) catch return;
+    writeFilePath(name, "config/prod.zig", project_tmpl.config_prod_zig, io) catch return;
+
+    // Write .env and .env.example
+    writeFilePath(name, ".env", project_tmpl.dot_env, io) catch return;
+    writeFilePath(name, ".env.example", project_tmpl.env_example, io) catch return;
+
     // Write .gitignore
     writeFilePath(name, ".gitignore", project_tmpl.gitignore, io) catch return;
 
@@ -84,6 +94,9 @@ pub fn run(args: []const []const u8, _: Allocator, io: std.Io) void {
         \\    zig build run
         \\
         \\  Then visit http://127.0.0.1:4000
+        \\
+        \\  Use -Denv= to select config environment:
+        \\    zig build run -Denv=prod
         \\
     , .{ name, name }) catch "  Project created.\n";
     stdout_file.writeStreamingAll(io, msg) catch {};
